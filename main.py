@@ -3,7 +3,8 @@ from machine import UART
 from Maix import GPIO
 import sensor, image, time, math
 
-sensor.reset()  #センサーの設定
+#センサーの設定
+sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
 sensor.set_vflip(1)
@@ -12,7 +13,7 @@ sensor.set_hmirror(1)
 sensor.set_auto_gain(False, gain_db=25)
 sensor.set_auto_whitebal(False, rgb_gain_db=(30, 20, 40))
 sensor.set_auto_exposure(False)
-sensor.skip_frames(25)
+sensor.set_auto_gain(False, gain_db = 0)
 
 sensor.run(1)
 
@@ -32,21 +33,21 @@ fm.register(17,fm.fpioa.GPIO1)
 led_g=GPIO(GPIO.GPIO0,GPIO.OUT)
 led_r=GPIO(GPIO.GPIO1,GPIO.OUT)
 
-for num in range(10):
+for num in range(4):
     led_g.value(1)
-    time.sleep(0.05)
+    time.sleep_ms(25)
     led_g.value(0)
-    time.sleep(0.05)
+    time.sleep_ms(25)
 for num in range(2):
     led_r.value(1)
-    time.sleep(0.1)
+    time.sleep_ms(10)
     led_r.value(0)
-    time.sleep(0.1)
+    time.sleep_ms(10)
 
-#各閾値設定
-ball_thresholds = [[0] * 6]
-y_goal_thresholds = [[0] * 6]
-b_goal_thresholds = [[0] * 6]
+#各閾値
+ball_thresholds = [(0, 100, 29, 74, 16, 65)]
+y_goal_thresholds = [(0, 100, -20, 21, 30, 76)]
+b_goal_thresholds = [(0, 100, 26, 78, -98, -51)]
 
 while True:
     img = sensor.snapshot() #映像の取得
@@ -58,7 +59,7 @@ while True:
     ball_y = 0
 
     for blob in img.find_blobs(ball_thresholds, pixel_threshold = 100, area_threshold = 20, merge = False):
-        if(blob[1] + (blob[3] / 2) > 30):
+        if(blob[1] + (blob[3] / 2) > 35):
             ball_rectarray.append(list(blob.rect()))     #見つかった閾値内のオブジェクトをリストに格納
 
     try:
@@ -79,7 +80,7 @@ while True:
     y_goal_size = 0
 
     for blob in img.find_blobs(y_goal_thresholds, pixel_threshold = 100, area_threshold = 100, merge = True, margin = 10):
-        if(blob[1] + (blob[3] / 2) > 30):
+        if(blob[1] + (blob[3] / 2) > 35):
             y_goal_rectarray.append(list(blob.rect()))     #見つかった閾値内のオブジェクトをリストに格納
 
     try:
@@ -102,7 +103,7 @@ while True:
     b_goal_size = 0
 
     for blob in img.find_blobs(b_goal_thresholds, pixel_threshold = 100, area_threshold = 100, merge = True, margin = 10):
-       if(blob[1] + (blob[3] / 2) > 30):
+       if(blob[1] + (blob[3] / 2) > 35):
             b_goal_rectarray.append(list(blob.rect()))     #見つかった閾値内のオブジェクトをリストに格納
 
     try:
@@ -130,34 +131,6 @@ while True:
     b_goal_size = int(b_goal_size);
 
     #uart
-    if(uart.any()):
-        led_g.value(1)
-        if(uart.readchar() == 0xFF):
-            recv_byte = [0] * 13
-            for i in range(13):
-                recv_byte[i] = uart.readchar()
-
-            if(recv_byte[12] == 0xAA):
-                ball_a_min = recv_byte[0] - 127
-                ball_a_max = recv_byte[1] - 127
-                ball_b_min = recv_byte[2] - 127
-                ball_b_max = recv_byte[3] - 127
-                y_goal_a_min = recv_byte[4] - 127
-                y_goal_a_max = recv_byte[5] - 127
-                y_goal_b_min = recv_byte[6] - 127
-                y_goal_b_max = recv_byte[7] - 127
-                b_goal_a_min = recv_byte[8] - 127
-                b_goal_a_max = recv_byte[9] - 127
-                b_goal_b_min = recv_byte[10] - 127
-                b_goal_b_max = recv_byte[11] - 127
-
-                ball_thresholds = [(0, 100, ball_a_min, ball_a_max, ball_b_min, ball_b_max)]
-                y_goal_thresholds = [(0, 100, y_goal_a_min, y_goal_a_max, y_goal_b_min, y_goal_b_max)]
-                b_goal_thresholds = [(0, 100, b_goal_a_min, b_goal_a_max, b_goal_b_min, b_goal_b_max)]
-        led_g.value(0)
-    else:
-        send_data = bytearray([0xFF, ball_dir, ball_dis, y_goal_dir, y_goal_size, b_goal_dir, b_goal_size, 0xAA])
-        uart.write(send_data)
-
-uart.deinit()
-del uart
+    send_data = bytearray([0xFF, ball_dir, ball_dis, y_goal_dir, y_goal_size, b_goal_dir, b_goal_size, 0xAA])
+    uart.write(send_data)
+    time.sleep_us(100)
