@@ -9,13 +9,13 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
 sensor.set_vflip(1)
 sensor.set_hmirror(1)
+sensor.set_windowing((320, 224))
 
 sensor.set_auto_gain(False, gain_db = 0)
 sensor.set_auto_whitebal(False, rgb_gain_db = (30, 20, 40))
 sensor.set_auto_exposure(False)
 sensor.set_contrast(2)
-sensor.set_saturation(2)
-sensor.skip_frames(time = 50)
+sensor.set_saturation(1)
 sensor.run(1)
 
 camera_gain = sensor.get_gain_db()
@@ -43,7 +43,7 @@ ball_thresholds = [(0, 100, 27, 58, 28, 80)]
 y_goal_thresholds = [(0, 100, -20, 21, 30, 76)]
 b_goal_thresholds = [(0, 100, 26, 78, -98, -51)]
 
-color_tracking_roi = [0, 40, 320, 200]
+color_tracking_roi = [0, 40, 320, 184]
 
 while True:
     img = sensor.snapshot() #映像の取得
@@ -53,7 +53,7 @@ while True:
     ball_x = 0
     ball_y = 0
 
-    for blob in img.find_blobs(ball_thresholds, roi = color_tracking_roi, pixel_threshold = 100, area_threshold = 20, merge = False):
+    for blob in img.find_blobs(ball_thresholds, roi = color_tracking_roi, pixel_threshold = 100, area_threshold = 10, merge = False):
         ball_rectarray.append(list(blob.rect()))     #見つかった閾値内のオブジェクトをリストに格納
 
     try:
@@ -115,10 +115,12 @@ while True:
     #取得した値を変換
     ball_dir = int(ball_x / ANGLE_CONVERSION)
     ball_y_dir = int((ball_y / ANGLE_Y_CONVERSION) - 15)
-    ball_y_1 = int(150*math.atan(math.radians(ball_y_dir)))
+    ball_y_1 = int(50 * math.log10(150*math.atan(math.radians(ball_y_dir))))
+    if ball_y_1 <= 0:
+        ball_y_1 = 0
 
     ball_cos = math.cos(math.radians(ball_dir - 45))
-    ball_dis = int(10 * math.sqrt(ball_y_1 * ball_cos))
+    ball_dis = int(ball_y_1 * ball_cos)
     if ball_dis <= 0:
         ball_dis = 0
 
@@ -132,7 +134,7 @@ while True:
         is_y_goal = 1
         goal_dir = y_goal_dir
         goal_size = y_goal_hight
-        if(y_goal_x + (y_goal_width / 2) < 190 or y_goal_x - (y_goal_width / 2) > 130):
+        if(y_goal_x + (y_goal_width / 2) < 175 or y_goal_x - (y_goal_width / 2) > 145):
             is_goal_front = 0
         else:
             is_goal_front = 1
@@ -140,7 +142,7 @@ while True:
         is_y_goal = 0
         goal_dir = b_goal_dir
         goal_size = b_goal_hight
-        if(b_goal_x + (b_goal_width / 2) < 190 or b_goal_x - (b_goal_width / 2) > 130):
+        if(b_goal_x + (b_goal_width / 2) < 175 or b_goal_x - (b_goal_width / 2) > 145):
             is_goal_front = 0
         else:
             is_goal_front = 1
